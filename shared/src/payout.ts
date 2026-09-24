@@ -63,6 +63,22 @@ export function estimatePayout(yesPool: number, noPool: number, side: Side, amou
   return Math.floor((amount * pot) / sidePool);
 }
 
+/**
+ * Points each member would get back if the prediction resolved `outcome` now:
+ * computePayouts summed per member (someone may have several bets).
+ */
+export function payoutsByMember(
+  bets: (Stake & { memberId: number })[],
+  outcome: Side,
+): Map<number, number> {
+  const perBet = computePayouts(bets, outcome);
+  const totals = new Map<number, number>();
+  for (const bet of bets) {
+    totals.set(bet.memberId, (totals.get(bet.memberId) ?? 0) + (perBet.get(bet.id) ?? 0));
+  }
+  return totals;
+}
+
 function sum(bets: Stake[]): number {
   return bets.reduce((acc, b) => acc + b.amount, 0);
 }
