@@ -31,8 +31,12 @@ export default function App() {
             <span>
               <strong>{me.name}</strong> · {points(me.balance)}
             </span>
-            <button className="btn-link" onClick={leave}>
-              Leave
+            <button
+              className="btn-link"
+              onClick={leave}
+              title="Signs you out on this device. Sign back in any time with the invite code."
+            >
+              Sign out
             </button>
           </div>
         </div>

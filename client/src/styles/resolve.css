@@ -1,0 +1,49 @@
+/* Creator's resolve panel and the payout preview in its confirmation */
+.resolve-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.resolve-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.resolve-choice .btn {
+  background: var(--bg);
+}
+.resolve-yes {
+  color: var(--yes);
+  border-color: var(--yes);
+}
+.resolve-no {
+  color: var(--no);
+  border-color: var(--no);
+}
+.resolve-choice .hint {
+  text-align: center;
+}
+
+.payout-preview {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.payout-preview li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--border);
+}
+.payout-preview li:first-child {
+  border-top: none;
+}
+
+@media (max-width: 520px) {
+  .resolve-choices {
+    grid-template-columns: 1fr;
+  }
+}
