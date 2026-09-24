@@ -33,10 +33,16 @@ export function requireMember(db: PrismaClient): RequestHandler {
     });
     if (!session) throw new HttpError(401, "Your session has ended. Join the group again");
     res.locals.member = session.member;
+    res.locals.token = token;
     next();
   };
 }
 
 export function currentMember(res: Response): CurrentMember {
   return res.locals.member as CurrentMember;
+}
+
+/** The bearer token of the current request. Only valid behind requireMember. */
+export function currentToken(res: Response): string {
+  return res.locals.token as string;
 }

@@ -3,8 +3,14 @@ export type Side = (typeof SIDES)[number];
 
 export interface Stake {
   id: number;
-  side: string;
+  side: Side;
   amount: number;
+}
+
+/** Narrows a side read from the database, where it is stored as a plain string. */
+export function toSide(value: string): Side {
+  if (value === "YES" || value === "NO") return value;
+  throw new Error(`Invalid side in database: ${value}`);
 }
 
 /**

@@ -1,7 +1,6 @@
 import { Router } from "express";
-import type { Group, Member, Prisma, PrismaClient } from "@prisma/client";
-import { z } from "zod";
-import { bearerToken, createSession, currentMember, endSession, requireMember } from "./auth";
+import type { PrismaClient } from "@prisma/client";
+import { createSession, currentMember, currentToken, endSession, requireMember } from "./auth";
 import { normalizeCode } from "./codes";
 import { HttpError } from "./errors";
 import {
@@ -13,110 +12,16 @@ import {
   placeBet,
   resolvePrediction,
 } from "./market";
-import { SIDES } from "./payout";
-
-const memberName = z
-  .string()
-  .trim()
-  .min(1, "Enter your name")
-  .max(30, "Names can be at most 30 characters");
-
-const codeBody = z.object({ code: z.string().trim().min(1, "Enter the group code") });
-
-const joinBody = codeBody.extend({ name: memberName });
-
-const createGroupBody = z.object({
-  groupName: z
-    .string()
-    .trim()
-    .min(1, "Give your group a name")
-    .max(40, "Keep the group name under 40 characters"),
-  name: memberName,
-});
-
-const predictionBody = z.object({
-  title: z
-    .string()
-    .trim()
-    .min(3, "The prediction needs at least 3 characters")
-    .max(140, "Keep the prediction under 140 characters"),
-  description: z.string().trim().max(1000, "Keep the description under 1000 characters").default(""),
-  closesAt: z.string().datetime({ message: "Invalid deadline" }).nullish(),
-});
-
-const betBody = z.object({
-  side: z.enum(SIDES, { message: "Pick YES or NO" }),
-  amount: z
-    .number({ message: "Enter an amount" })
-    .int("Bets must be whole points")
-    .positive("Bets must be at least 1 point"),
-});
-
-const resolveBody = z.object({ outcome: z.enum(SIDES, { message: "Pick YES or NO" }) });
-
-const idParam = z.coerce.number().int().positive();
-
-const predictionInclude = {
-  creator: { select: { id: true, name: true } },
-  bets: { include: { member: { select: { id: true, name: true } } }, orderBy: { id: "desc" } },
-} satisfies Prisma.PredictionInclude;
-
-type PredictionRow = Prisma.PredictionGetPayload<{ include: typeof predictionInclude }>;
-
-function statusOf(p: PredictionRow) {
-  if (p.outcome) return "RESOLVED";
-  if (p.closesAt && p.closesAt <= new Date()) return "CLOSED";
-  return "OPEN";
-}
-
-function toSummary(p: PredictionRow) {
-  let yesPool = 0;
-  let noPool = 0;
-  let creatorStake = 0;
-  for (const bet of p.bets) {
-    if (bet.side === "YES") yesPool += bet.amount;
-    else noPool += bet.amount;
-    if (bet.memberId === p.creatorId) creatorStake += bet.amount;
-  }
-  return {
-    id: p.id,
-    title: p.title,
-    description: p.description,
-    creator: p.creator,
-    closesAt: p.closesAt,
-    createdAt: p.createdAt,
-    resolvedAt: p.resolvedAt,
-    outcome: p.outcome,
-    status: statusOf(p),
-    yesPool,
-    noPool,
-    betCount: p.bets.length,
-    creatorStake,
-  };
-}
-
-function toDetail(p: PredictionRow) {
-  return {
-    ...toSummary(p),
-    bets: p.bets.map((b) => ({
-      id: b.id,
-      side: b.side,
-      amount: b.amount,
-      payout: b.payout,
-      createdAt: b.createdAt,
-      member: b.member,
-    })),
-  };
-}
-
-function toMember(m: Member) {
-  return { id: m.id, name: m.name, balance: m.balance };
-}
-
-/** The signed-in member, with the group they belong to (for sharing the invite code). */
-function toMe(m: Member, group: Group) {
-  return { ...toMember(m), group: { name: group.name, code: group.code } };
-}
+import {
+  betBody,
+  codeBody,
+  createGroupBody,
+  idParam,
+  joinBody,
+  predictionBody,
+  resolveBody,
+} from "./schemas";
+import { predictionInclude, toDetail, toMe, toMember, toSummaries } from "./views";
 
 export function createRouter(db: PrismaClient) {
   const router = Router();
@@ -169,8 +74,8 @@ export function createRouter(db: PrismaClient) {
   // Everything below needs a signed-in member, and only sees that member's group.
   router.use(requireMember(db));
 
-  router.post("/logout", async (req, res) => {
-    await endSession(db, bearerToken(req.get("authorization"))!);
+  router.post("/logout", async (_req, res) => {
+    await endSession(db, currentToken(res));
     res.status(204).end();
   });
 
@@ -194,12 +99,32 @@ export function createRouter(db: PrismaClient) {
   });
 
   router.get("/predictions", async (_req, res) => {
-    const predictions = await db.prediction.findMany({
-      where: { groupId: currentMember(res).groupId },
-      include: predictionInclude,
-      orderBy: { id: "desc" },
-    });
-    res.json(predictions.map(toSummary));
+    const { groupId } = currentMember(res);
+    const [predictions, totals] = await Promise.all([
+      db.prediction.findMany({
+        where: { groupId },
+        include: { creator: { select: { id: true, name: true } } },
+        orderBy: { id: "desc" },
+      }),
+      db.bet.groupBy({
+        by: ["predictionId", "memberId", "side"],
+        where: { prediction: { groupId } },
+        _sum: { amount: true },
+        _count: { _all: true },
+      }),
+    ]);
+    res.json(
+      toSummaries(
+        predictions,
+        totals.map((t) => ({
+          predictionId: t.predictionId,
+          memberId: t.memberId,
+          side: t.side,
+          amount: t._sum.amount ?? 0,
+          count: t._count._all,
+        })),
+      ),
+    );
   });
 
   router.get("/predictions/:id", async (req, res) => {

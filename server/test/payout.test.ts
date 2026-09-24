@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computePayouts } from "../src/payout";
+import { computePayouts, toSide, type Stake } from "../src/payout";
 
 const total = (payouts: Map<number, number>) => [...payouts.values()].reduce((a, b) => a + b, 0);
 
@@ -48,7 +48,7 @@ describe("computePayouts", () => {
   });
 
   it("conserves points for uneven splits", () => {
-    const bets = [
+    const bets: Stake[] = [
       { id: 1, side: "NO", amount: 13 },
       { id: 2, side: "NO", amount: 29 },
       { id: 3, side: "YES", amount: 55 },
@@ -60,5 +60,13 @@ describe("computePayouts", () => {
 
   it("returns nothing for a prediction with no bets", () => {
     expect(computePayouts([], "YES").size).toBe(0);
+  });
+});
+
+describe("toSide", () => {
+  it("accepts YES and NO and rejects anything else", () => {
+    expect(toSide("YES")).toBe("YES");
+    expect(toSide("NO")).toBe("NO");
+    expect(() => toSide("MAYBE")).toThrow();
   });
 });
