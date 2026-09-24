@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, getToken, setToken, setUnauthorizedHandler } from "./api";
+import { AUTO_REFRESH_MS, useAutoRefresh } from "./hooks";
 import type { Me } from "./types";
 
 interface Session {
@@ -47,8 +48,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [signOutLocally]);
 
   const refreshMe = useCallback(async () => {
-    setMe(await api.me());
+    const token = getToken();
+    const fresh = await api.me();
+    // Ignore a response that lands after signing out or switching member.
+    if (getToken() === token) setMe(fresh);
   }, []);
+
+  // Keep the header balance current: friends' resolutions pay you out too.
+  useAutoRefresh(refreshMe, AUTO_REFRESH_MS, me !== null);
 
   return (
     <SessionContext.Provider value={{ me, loading, signIn, leave, refreshMe }}>

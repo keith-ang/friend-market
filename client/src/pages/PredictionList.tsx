@@ -3,12 +3,13 @@ import { Link } from "react-router-dom";
 import { api } from "../api";
 import { ErrorNote, Loading, OddsBar, StatusBadge } from "../components";
 import { points } from "../format";
-import { useApi } from "../hooks";
+import { useApi, useAutoRefresh } from "../hooks";
 
 type Tab = "open" | "resolved";
 
 export default function PredictionList() {
-  const { data: predictions, error, loading } = useApi(() => api.predictions(), []);
+  const { data: predictions, error, loading, reload } = useApi(() => api.predictions(), []);
+  useAutoRefresh(reload);
   const [tab, setTab] = useState<Tab>("open");
 
   const shown = (predictions ?? []).filter((p) =>

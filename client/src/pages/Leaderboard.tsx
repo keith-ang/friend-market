@@ -1,15 +1,16 @@
 import { api } from "../api";
 import { ErrorNote, Loading } from "../components";
 import { points } from "../format";
-import { useApi } from "../hooks";
+import { useApi, useAutoRefresh } from "../hooks";
 import { useMe } from "../session";
 
 export default function Leaderboard() {
   const me = useMe();
-  const { data: members, error, loading } = useApi(
+  const { data: members, error, loading, reload } = useApi(
     () => api.members().then((list) => [...list].sort((a, b) => b.balance - a.balance)),
     [],
   );
+  useAutoRefresh(reload);
 
   return (
     <>
