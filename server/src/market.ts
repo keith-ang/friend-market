@@ -1,7 +1,7 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { generateInviteCode } from "./codes";
 import { HttpError } from "./errors";
-import { computePayouts, type Side } from "./payout";
+import { computePayouts, toSide, type Side } from "./payout";
 
 export const MAX_MEMBERS = 10;
 export const STARTING_BALANCE = 1000;
@@ -10,6 +10,11 @@ export const STARTING_BALANCE = 1000;
 export interface Actor {
   id: number;
   groupId: number;
+}
+
+/** True once the betting deadline has passed. Resolution also ends betting, and is checked separately. */
+export function isBettingClosed(prediction: { closesAt: Date | null }, now = new Date()): boolean {
+  return prediction.closesAt !== null && prediction.closesAt <= now;
 }
 
 // Each rule that touches balances runs in one transaction and writes before it
@@ -109,7 +114,7 @@ export async function placeBet(
     const prediction = await tx.prediction.findUnique({ where: { id: predictionId } });
     assertVisible(prediction, actor);
     if (prediction.outcome) throw new HttpError(409, "This prediction has already been resolved");
-    if (prediction.closesAt && prediction.closesAt <= new Date()) {
+    if (isBettingClosed(prediction)) {
       throw new HttpError(409, "Betting has closed on this prediction");
     }
 
@@ -138,7 +143,10 @@ export async function resolvePrediction(
     }
 
     const bets = await tx.bet.findMany({ where: { predictionId } });
-    const payouts = computePayouts(bets, outcome);
+    const payouts = computePayouts(
+      bets.map((b) => ({ id: b.id, side: toSide(b.side), amount: b.amount })),
+      outcome,
+    );
     const credits = new Map<number, number>();
     for (const bet of bets) {
       const payout = payouts.get(bet.id) ?? 0;

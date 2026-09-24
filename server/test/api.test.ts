@@ -131,6 +131,27 @@ describe("access", () => {
   });
 });
 
+describe("listing", () => {
+  it("reports the same pools, bet count and creator stake as the detail view", async () => {
+    const { token: priya, code } = await startGroup("Priya");
+    const alex = await join(code, "Alex");
+    const busy = await newPrediction(priya);
+    const empty = await newPrediction(priya);
+    await as(priya).post(`/api/predictions/${busy}/bets`, { side: "YES", amount: 10 });
+    await as(priya).post(`/api/predictions/${busy}/bets`, { side: "YES", amount: 15 });
+    await as(priya).post(`/api/predictions/${busy}/bets`, { side: "NO", amount: 5 });
+    await as(alex).post(`/api/predictions/${busy}/bets`, { side: "NO", amount: 40 });
+
+    const list = (await as(alex).get("/api/predictions")).body;
+    const { bets: _bets, ...detailSummary } = (await as(alex).get(`/api/predictions/${busy}`)).body;
+
+    expect(list.map((p: { id: number }) => p.id)).toEqual([empty, busy]);
+    expect(list[1]).toEqual(detailSummary);
+    expect(list[1]).toMatchObject({ yesPool: 25, noPool: 45, betCount: 4, creatorStake: 30 });
+    expect(list[0]).toMatchObject({ yesPool: 0, noPool: 0, betCount: 0, creatorStake: 0, status: "OPEN" });
+  });
+});
+
 describe("betting", () => {
   it("deducts points immediately and updates the pools", async () => {
     const { token: priya, code } = await startGroup("Priya");
