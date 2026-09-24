@@ -54,7 +54,15 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: DependencyList): ApiS
     // Refetch exactly when the caller's deps change; `load` itself is stable.
   }, deps);
 
-  return { data, error, loading, reload: load, setData };
+  // A fresher copy (e.g. what an action returned) must win over any refetch still in flight.
+  const replace = useCallback((next: T) => {
+    latestRequest.current++;
+    setData(next);
+    setError(null);
+    setLoading(false);
+  }, []);
+
+  return { data, error, loading, reload: load, setData: replace };
 }
 
 export interface ActionState {
