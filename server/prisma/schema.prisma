@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Group {
+  id          Int          @id @default(autoincrement())
+  name        String
+  /// Generated invite code, e.g. "tidy-otter-4821"; always lowercase
+  code        String       @unique
+  createdAt   DateTime     @default(now())
+  members     Member[]
+  predictions Prediction[]
+}
+
+model Member {
+  id          Int          @id @default(autoincrement())
+  groupId     Int
+  group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  name        String
+  balance     Int
+  createdAt   DateTime     @default(now())
+  sessions    Session[]
+  predictions Prediction[]
+  bets        Bet[]
+
+  @@unique([groupId, name])
+}
+
+model Session {
+  /// SHA-256 of the bearer token; the raw token is never stored
+  tokenHash String   @id
+  memberId  Int
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Prediction {
+  id          Int       @id @default(autoincrement())
+  groupId     Int
+  group       Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  title       String
+  description String    @default("")
+  /// Betting deadline; null means betting stays open until resolved
+  closesAt    DateTime?
+  creatorId   Int
+  creator     Member    @relation(fields: [creatorId], references: [id])
+  /// null while unresolved; "YES" | "NO" once the creator resolves it
+  outcome     String?
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+  bets        Bet[]
+
+  @@index([groupId])
+}
+
+model Bet {
+  id           Int        @id @default(autoincrement())
+  predictionId Int
+  prediction   Prediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+  memberId     Int
+  member       Member     @relation(fields: [memberId], references: [id])
+  /// "YES" | "NO"
+  side         String
+  amount       Int
+  /// Points paid back when the prediction resolved (0 for a losing bet); null while unresolved
+  payout       Int?
+  createdAt    DateTime   @default(now())
+
+  @@index([predictionId])
+  @@index([memberId])
+}
