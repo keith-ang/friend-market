@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computePayouts, estimatePayout, toSide, type Stake } from "@friend-market/shared";
+import { computePayouts, estimatePayout, payoutsByMember, toSide, type Stake } from "@friend-market/shared";
 
 const total = (payouts: Map<number, number>) => [...payouts.values()].reduce((a, b) => a + b, 0);
 
@@ -94,5 +94,21 @@ describe("estimatePayout", () => {
   it("returns 0 for non-positive amounts", () => {
     expect(estimatePayout(10, 10, "YES", 0)).toBe(0);
     expect(estimatePayout(10, 10, "YES", -5)).toBe(0);
+  });
+});
+
+describe("payoutsByMember", () => {
+  it("sums each member's bets, and covers members who would get nothing", () => {
+    const bets = [
+      { id: 1, memberId: 7, side: "YES" as const, amount: 100 },
+      { id: 2, memberId: 7, side: "NO" as const, amount: 50 },
+      { id: 3, memberId: 8, side: "NO" as const, amount: 150 },
+    ];
+    const ifYes = payoutsByMember(bets, "YES");
+    expect(ifYes.get(7)).toBe(300);
+    expect(ifYes.get(8)).toBe(0);
+    const ifNo = payoutsByMember(bets, "NO");
+    expect(ifNo.get(7)).toBe(75);
+    expect(ifNo.get(8)).toBe(225);
   });
 });
