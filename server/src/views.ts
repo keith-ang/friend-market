@@ -26,6 +26,7 @@ export interface Pools {
   noPool: number;
   betCount: number;
   creatorStake: number;
+  myStake: { yes: number; no: number };
 }
 
 /** One row of `bet.groupBy({ by: ["predictionId", "memberId", "side"] })`. */
@@ -43,14 +44,30 @@ export function statusOf(p: Prediction, now = new Date()): Status {
   return "OPEN";
 }
 
-function addStake(pools: Pools, creatorId: number, stake: Omit<StakeTotal, "predictionId">) {
-  if (stake.side === "YES") pools.yesPool += stake.amount;
+function addStake(
+  pools: Pools,
+  creatorId: number,
+  viewerId: number,
+  stake: Omit<StakeTotal, "predictionId">,
+) {
+  const yes = stake.side === "YES";
+  if (yes) pools.yesPool += stake.amount;
   else pools.noPool += stake.amount;
   pools.betCount += stake.count;
   if (stake.memberId === creatorId) pools.creatorStake += stake.amount;
+  if (stake.memberId === viewerId) {
+    if (yes) pools.myStake.yes += stake.amount;
+    else pools.myStake.no += stake.amount;
+  }
 }
 
-const emptyPools = (): Pools => ({ yesPool: 0, noPool: 0, betCount: 0, creatorStake: 0 });
+const emptyPools = (): Pools => ({
+  yesPool: 0,
+  noPool: 0,
+  betCount: 0,
+  creatorStake: 0,
+  myStake: { yes: 0, no: 0 },
+});
 
 const isoOrNull = (date: Date | null) => (date ? date.toISOString() : null);
 
@@ -69,20 +86,27 @@ export function toSummary(p: PredictionWithCreator, pools: Pools): PredictionSum
   };
 }
 
-/** Summaries for the list endpoint, built from per-member stake totals instead of every bet. */
-export function toSummaries(predictions: PredictionWithCreator[], totals: StakeTotal[]): PredictionSummary[] {
+/**
+ * Summaries for the list endpoint, built from per-member stake totals instead of every bet.
+ * `viewerId` is the requesting member, whose own stake is reported as `myStake`.
+ */
+export function toSummaries(
+  predictions: PredictionWithCreator[],
+  totals: StakeTotal[],
+  viewerId: number,
+): PredictionSummary[] {
   const poolsById = new Map(predictions.map((p) => [p.id, emptyPools()]));
   const creatorById = new Map(predictions.map((p) => [p.id, p.creatorId]));
   for (const total of totals) {
     const pools = poolsById.get(total.predictionId);
-    if (pools) addStake(pools, creatorById.get(total.predictionId)!, total);
+    if (pools) addStake(pools, creatorById.get(total.predictionId)!, viewerId, total);
   }
   return predictions.map((p) => toSummary(p, poolsById.get(p.id)!));
 }
 
-export function toDetail(p: PredictionRow): PredictionDetail {
+export function toDetail(p: PredictionRow, viewerId: number): PredictionDetail {
   const pools = emptyPools();
-  for (const bet of p.bets) addStake(pools, p.creatorId, { ...bet, count: 1 });
+  for (const bet of p.bets) addStake(pools, p.creatorId, viewerId, { ...bet, count: 1 });
   return {
     ...toSummary(p, pools),
     bets: p.bets.map((b) => ({

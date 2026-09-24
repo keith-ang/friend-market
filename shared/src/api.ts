@@ -44,6 +44,8 @@ export interface PredictionSummary {
   noPool: number;
   betCount: number;
   creatorStake: number;
+  /** Points the requesting member has staked on each side. */
+  myStake: { yes: number; no: number };
 }
 
 export interface BetDto {
