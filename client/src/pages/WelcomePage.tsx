@@ -1,9 +1,12 @@
 import { useState, type FormEvent, type ReactNode } from "react";
+import { LIMITS, MAX_MEMBERS, STARTING_BALANCE } from "@friend-market/shared";
 import { api } from "../api";
 import { ErrorNote, InviteCode } from "../components";
 import { useAction } from "../hooks";
 import { useSession } from "../session";
 import type { Me } from "../types";
+
+const startingPoints = STARTING_BALANCE.toLocaleString();
 
 type Step =
   | { kind: "home" }
@@ -35,7 +38,7 @@ export default function WelcomePage() {
           <div className="stack">
             <h1>🔮 Friend Market</h1>
             <p className="muted">
-              Bet play points on what your friends will do next. Private to your group of up to 10.
+              Bet play points on what your friends will do next. Private to your group of up to {MAX_MEMBERS}.
             </p>
             <button className="btn btn-primary btn-big" onClick={() => go({ kind: "join-code" })}>
               Join a group
@@ -92,7 +95,7 @@ export default function WelcomePage() {
             <p>Share this invite code with your friends so they can join:</p>
             <InviteCode code={step.member.group.code} large />
             <p className="muted small">
-              Up to 10 people can join. You can find the code again at the top of every page.
+              Up to {MAX_MEMBERS} people can join. You can find the code again at the top of every page.
             </p>
             <button className="btn btn-primary" onClick={() => signIn(step.token, step.member)}>
               Go to {step.member.group.name}
@@ -170,7 +173,7 @@ function JoinNameStep({
         </>
       )}
       {step.full ? (
-        <p className="muted">This group is full (10 members), so pick your name above.</p>
+        <p className="muted">This group is full ({MAX_MEMBERS} members), so pick your name above.</p>
       ) : (
         <form
           className="stack"
@@ -184,12 +187,12 @@ function JoinNameStep({
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              maxLength={30}
+              maxLength={LIMITS.memberName.max}
               placeholder="e.g. Sam"
             />
           </label>
           <button className="btn btn-primary" disabled={busy || !newName.trim()}>
-            Join with 1,000 points
+            Join with {startingPoints} points
           </button>
         </form>
       )}
@@ -221,16 +224,21 @@ function CreateGroupForm({
         <input
           value={groupName}
           onChange={(e) => setGroupName(e.target.value)}
-          maxLength={40}
+          maxLength={LIMITS.groupName.max}
           autoFocus
           placeholder="e.g. Dinner Club"
         />
       </label>
       <label>
         Your name
-        <input value={name} onChange={(e) => setName(e.target.value)} maxLength={30} placeholder="e.g. Sam" />
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={LIMITS.memberName.max}
+          placeholder="e.g. Sam"
+        />
       </label>
-      <p className="muted small">You'll get an invite code to share. Everyone starts with 1,000 points.</p>
+      <p className="muted small">You'll get an invite code to share. Everyone starts with {startingPoints} points.</p>
       <button className="btn btn-primary" disabled={busy || !groupName.trim() || !name.trim()}>
         Create group
       </button>

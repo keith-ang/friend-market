@@ -1,3 +1,4 @@
+import type { AuthResponse, RosterResponse } from "@friend-market/shared";
 import type { Me, MemberWithInPlay, PredictionDetail, PredictionSummary, Side } from "./types";
 
 const TOKEN_KEY = "friend-market-token";
@@ -58,11 +59,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 export const api = {
   createGroup: (groupName: string, name: string) =>
-    request<{ token: string; member: Me }>("POST", "/groups", { groupName, name }),
+    request<AuthResponse>("POST", "/groups", { groupName, name }),
   roster: (code: string) =>
-    request<{ groupName: string; names: string[]; full: boolean }>("POST", "/roster", { code }),
+    request<RosterResponse>("POST", "/roster", { code }),
   join: (code: string, name: string) =>
-    request<{ token: string; member: Me }>("POST", "/join", { code, name }),
+    request<AuthResponse>("POST", "/join", { code, name }),
   logout: () => request<void>("POST", "/logout"),
   me: () => request<Me>("GET", "/me"),
   members: () => request<MemberWithInPlay[]>("GET", "/members"),

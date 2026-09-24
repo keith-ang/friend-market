@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { SIDES } from "./payout";
+import { LIMITS, SIDES } from "@friend-market/shared";
 
 const memberName = z
   .string()
   .trim()
   .min(1, "Enter your name")
-  .max(30, "Names can be at most 30 characters");
+  .max(LIMITS.memberName.max, `Names can be at most ${LIMITS.memberName.max} characters`);
 
 export const codeBody = z.object({ code: z.string().trim().min(1, "Enter the group code") });
 
@@ -16,7 +16,7 @@ export const createGroupBody = z.object({
     .string()
     .trim()
     .min(1, "Give your group a name")
-    .max(40, "Keep the group name under 40 characters"),
+    .max(LIMITS.groupName.max, `Keep the group name under ${LIMITS.groupName.max} characters`),
   name: memberName,
 });
 
@@ -24,9 +24,13 @@ export const predictionBody = z.object({
   title: z
     .string()
     .trim()
-    .min(3, "The prediction needs at least 3 characters")
-    .max(140, "Keep the prediction under 140 characters"),
-  description: z.string().trim().max(1000, "Keep the description under 1000 characters").default(""),
+    .min(LIMITS.title.min, `The prediction needs at least ${LIMITS.title.min} characters`)
+    .max(LIMITS.title.max, `Keep the prediction under ${LIMITS.title.max} characters`),
+  description: z
+    .string()
+    .trim()
+    .max(LIMITS.description.max, `Keep the description under ${LIMITS.description.max} characters`)
+    .default(""),
   closesAt: z.string().datetime({ message: "Invalid deadline" }).nullish(),
 });
 
