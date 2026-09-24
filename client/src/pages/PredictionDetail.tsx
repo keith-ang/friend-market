@@ -6,8 +6,10 @@ import { ConfirmDialog } from "../ConfirmDialog";
 import { BackLink, ErrorNote, Loading, OddsBar, StatusBadge } from "../components";
 import { estimatePayout, formatDate, points } from "../format";
 import { useAction, useApi, useAutoRefresh, useChangedWhileEditing } from "../hooks";
+import { QuickAmounts } from "../QuickAmounts";
 import { useMe, useSession } from "../session";
 import type { Bet, PredictionDetail as Detail, Side } from "../types";
+import { YourPosition } from "../YourPosition";
 import "../styles/live.css";
 import "../styles/resolve.css";
 
@@ -115,6 +117,8 @@ export default function PredictionDetail() {
         )}
       </article>
 
+      <YourPosition prediction={p} meId={me.id} />
+
       <ErrorNote message={actionError} />
 
       {p.status === "OPEN" && (
@@ -146,6 +150,7 @@ export default function PredictionDetail() {
               placeholder="e.g. 50"
             />
           </label>
+          <QuickAmounts balance={me.balance} amount={amount} onPick={setAmount} />
           {amount !== "" && !validStake && (
             <p className="small no-text">
               {stake > me.balance ? "That's more points than you have." : "Enter a whole number of points."}

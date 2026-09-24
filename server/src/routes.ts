@@ -106,7 +106,7 @@ export function createRouter(db: PrismaClient) {
   });
 
   router.get("/predictions", async (_req, res) => {
-    const { groupId } = currentMember(res);
+    const { id: viewerId, groupId } = currentMember(res);
     const [predictions, totals] = await Promise.all([
       db.prediction.findMany({
         where: { groupId },
@@ -130,12 +130,14 @@ export function createRouter(db: PrismaClient) {
           amount: t._sum.amount ?? 0,
           count: t._count._all,
         })),
+        viewerId,
       ),
     );
   });
 
   router.get("/predictions/:id", async (req, res) => {
-    res.json(toDetail(await loadPrediction(idParam.parse(req.params.id), currentMember(res).groupId)));
+    const me = currentMember(res);
+    res.json(toDetail(await loadPrediction(idParam.parse(req.params.id), me.groupId), me.id));
   });
 
   router.post("/predictions", async (req, res) => {
@@ -146,7 +148,7 @@ export function createRouter(db: PrismaClient) {
       description: body.description,
       closesAt: body.closesAt ? new Date(body.closesAt) : null,
     });
-    res.status(201).json(toDetail(await loadPrediction(created.id, me.groupId)));
+    res.status(201).json(toDetail(await loadPrediction(created.id, me.groupId), me.id));
   });
 
   router.delete("/predictions/:id", async (req, res) => {
@@ -159,7 +161,7 @@ export function createRouter(db: PrismaClient) {
     const id = idParam.parse(req.params.id);
     const { side, amount } = betBody.parse(req.body);
     await placeBet(db, me, id, side, amount);
-    res.status(201).json(toDetail(await loadPrediction(id, me.groupId)));
+    res.status(201).json(toDetail(await loadPrediction(id, me.groupId), me.id));
   });
 
   router.post("/predictions/:id/resolve", async (req, res) => {
@@ -167,7 +169,7 @@ export function createRouter(db: PrismaClient) {
     const id = idParam.parse(req.params.id);
     const { outcome } = resolveBody.parse(req.body);
     await resolvePrediction(db, me, id, outcome);
-    res.json(toDetail(await loadPrediction(id, me.groupId)));
+    res.json(toDetail(await loadPrediction(id, me.groupId), me.id));
   });
 
   return router;

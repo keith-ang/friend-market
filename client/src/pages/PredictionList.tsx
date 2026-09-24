@@ -4,6 +4,8 @@ import { api } from "../api";
 import { ErrorNote, Loading, OddsBar, StatusBadge } from "../components";
 import { points } from "../format";
 import { useApi, useAutoRefresh } from "../hooks";
+import { needsYourCall, PredictionTags } from "../PredictionTags";
+import { useMe } from "../session";
 
 type Tab = "open" | "resolved";
 
@@ -11,10 +13,12 @@ export default function PredictionList() {
   const { data: predictions, error, loading, reload } = useApi(() => api.predictions(), []);
   useAutoRefresh(reload);
   const [tab, setTab] = useState<Tab>("open");
+  const me = useMe();
 
-  const shown = (predictions ?? []).filter((p) =>
-    tab === "open" ? p.status !== "RESOLVED" : p.status === "RESOLVED",
-  );
+  // Predictions waiting for you to resolve go first, so creators don't have to hunt for them.
+  const shown = (predictions ?? [])
+    .filter((p) => (tab === "open" ? p.status !== "RESOLVED" : p.status === "RESOLVED"))
+    .sort((a, b) => Number(needsYourCall(b, me.id)) - Number(needsYourCall(a, me.id)));
 
   return (
     <>
@@ -51,7 +55,10 @@ export default function PredictionList() {
         {shown.map((p) => (
           <Link to={`/p/${p.id}`} key={p.id} className="card prediction-card">
             <div className="card-top">
-              <StatusBadge prediction={p} />
+              <span className="card-badges">
+                <StatusBadge prediction={p} />
+                <PredictionTags prediction={p} meId={me.id} />
+              </span>
               <span className="muted small">by {p.creator.name}</span>
             </div>
             <h2>{p.title}</h2>

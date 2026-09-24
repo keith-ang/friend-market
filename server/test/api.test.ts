@@ -169,6 +169,28 @@ describe("listing", () => {
     expect(list[1]).toMatchObject({ yesPool: 25, noPool: 45, betCount: 4, creatorStake: 30 });
     expect(list[0]).toMatchObject({ yesPool: 0, noPool: 0, betCount: 0, creatorStake: 0, status: "OPEN" });
   });
+
+  it("reports the caller's own stake as myStake, in the list and the detail view", async () => {
+    const { token: priya, code } = await startGroup("Priya");
+    const alex = await join(code, "Alex");
+    const sam = await join(code, "Sam");
+    const id = await newPrediction(priya);
+    await as(alex).post(`/api/predictions/${id}/bets`, { side: "YES", amount: 30 });
+    await as(alex).post(`/api/predictions/${id}/bets`, { side: "NO", amount: 5 });
+    await as(priya).post(`/api/predictions/${id}/bets`, { side: "NO", amount: 12 });
+
+    const myStake = async (token: string) => ({
+      list: (await as(token).get("/api/predictions")).body[0].myStake,
+      detail: (await as(token).get(`/api/predictions/${id}`)).body.myStake,
+    });
+    expect(await myStake(alex)).toEqual({ list: { yes: 30, no: 5 }, detail: { yes: 30, no: 5 } });
+    expect(await myStake(priya)).toEqual({ list: { yes: 0, no: 12 }, detail: { yes: 0, no: 12 } });
+    expect(await myStake(sam)).toEqual({ list: { yes: 0, no: 0 }, detail: { yes: 0, no: 0 } });
+
+    // The bet endpoint's response is shaped for the bettor too.
+    const afterBet = await as(sam).post(`/api/predictions/${id}/bets`, { side: "YES", amount: 7 });
+    expect(afterBet.body.myStake).toEqual({ yes: 7, no: 0 });
+  });
 });
 
 describe("betting", () => {
