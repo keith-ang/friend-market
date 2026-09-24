@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { statusLabel, yesPercent } from "./format";
 import type { PredictionSummary } from "./types";
 
@@ -52,6 +53,18 @@ export function InviteCode({ code, large = false }: { code: string; large?: bool
       </button>
     </span>
   );
+}
+
+export function BackLink() {
+  return (
+    <Link to="/" className="btn-link back">
+      ← All predictions
+    </Link>
+  );
+}
+
+export function Loading() {
+  return <p className="muted">Loading…</p>;
 }
 
 export function ErrorNote({ message }: { message: string | null }) {

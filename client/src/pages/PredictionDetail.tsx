@@ -1,10 +1,11 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useState, type FormEvent } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
-import { ErrorNote, OddsBar, StatusBadge } from "../components";
+import { BackLink, ErrorNote, Loading, OddsBar, StatusBadge } from "../components";
 import { estimatePayout, formatDate, points } from "../format";
+import { useAction, useApi } from "../hooks";
 import { useMe, useSession } from "../session";
-import type { Bet, PredictionDetail as Detail, Side } from "../types";
+import type { Bet, Side } from "../types";
 
 export default function PredictionDetail() {
   const id = Number(useParams().id);
@@ -12,44 +13,23 @@ export default function PredictionDetail() {
   const { refreshMe } = useSession();
   const navigate = useNavigate();
 
-  const [prediction, setPrediction] = useState<Detail | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const { data: prediction, error: loadError, setData: setPrediction } = useApi(() => api.prediction(id), [id]);
+  const { busy, error: actionError, run } = useAction();
 
   const [side, setSide] = useState<Side>("YES");
   const [amount, setAmount] = useState("");
 
-  useEffect(() => {
-    api
-      .prediction(id)
-      .then(setPrediction)
-      .catch((err) => setLoadError(err.message));
-  }, [id]);
-
-  async function run(action: () => Promise<void>) {
-    setBusy(true);
-    setActionError(null);
-    try {
-      await action();
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setBusy(false);
+  if (!prediction) {
+    if (loadError) {
+      return (
+        <>
+          <BackLink />
+          <ErrorNote message={loadError} />
+        </>
+      );
     }
+    return <Loading />;
   }
-
-  if (loadError) {
-    return (
-      <>
-        <Link to="/" className="btn-link back">
-          ← All predictions
-        </Link>
-        <ErrorNote message={loadError} />
-      </>
-    );
-  }
-  if (!prediction) return <p className="muted">Loading…</p>;
 
   const p = prediction;
   const isCreator = p.creator.id === me.id;
@@ -84,9 +64,7 @@ export default function PredictionDetail() {
 
   return (
     <>
-      <Link to="/" className="btn-link back">
-        ← All predictions
-      </Link>
+      <BackLink />
 
       <article className="card detail">
         <div className="card-top">

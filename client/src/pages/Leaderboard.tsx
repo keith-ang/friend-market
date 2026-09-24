@@ -1,27 +1,21 @@
-import { useEffect, useState } from "react";
 import { api } from "../api";
-import { ErrorNote } from "../components";
+import { ErrorNote, Loading } from "../components";
 import { points } from "../format";
+import { useApi } from "../hooks";
 import { useMe } from "../session";
-import type { MemberWithInPlay } from "../types";
 
 export default function Leaderboard() {
   const me = useMe();
-  const [members, setMembers] = useState<MemberWithInPlay[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    api
-      .members()
-      .then((list) => setMembers([...list].sort((a, b) => b.balance - a.balance)))
-      .catch((err) => setError(err.message));
-  }, []);
+  const { data: members, error, loading } = useApi(
+    () => api.members().then((list) => [...list].sort((a, b) => b.balance - a.balance)),
+    [],
+  );
 
   return (
     <>
       <h1>Leaderboard</h1>
       <ErrorNote message={error} />
-      {members === null && !error && <p className="muted">Loading…</p>}
+      {loading && <Loading />}
       {members && (
         <ol className="card leaderboard">
           {members.map((m, i) => (
