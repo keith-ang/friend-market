@@ -1,10 +1,7 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
+import { computePayouts, MAX_MEMBERS, STARTING_BALANCE, toSide, type Side } from "@friend-market/shared";
 import { generateInviteCode } from "./codes";
 import { HttpError } from "./errors";
-import { computePayouts, toSide, type Side } from "./payout";
-
-export const MAX_MEMBERS = 10;
-export const STARTING_BALANCE = 1000;
 
 /** Who is acting: every rule is scoped to the acting member's group. */
 export interface Actor {

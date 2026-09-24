@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { LIMITS } from "@friend-market/shared";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { BackLink, ErrorNote } from "../components";
@@ -34,7 +35,7 @@ export default function NewPrediction() {
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            maxLength={140}
+            maxLength={LIMITS.title.max}
             placeholder="Sam will be late to dinner"
             autoFocus
           />
@@ -45,7 +46,7 @@ export default function NewPrediction() {
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            maxLength={1000}
+            maxLength={LIMITS.description.max}
             rows={3}
             placeholder="How exactly will it be judged?"
           />
@@ -56,7 +57,7 @@ export default function NewPrediction() {
           <span className="hint">Leave blank to keep betting open until you resolve it.</span>
         </label>
         <ErrorNote message={error} />
-        <button className="btn btn-primary" disabled={busy || title.trim().length < 3}>
+        <button className="btn btn-primary" disabled={busy || title.trim().length < LIMITS.title.min}>
           Post prediction
         </button>
       </form>

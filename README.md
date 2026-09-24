@@ -61,17 +61,23 @@ Run these from the repo root:
 ## Project structure
 
 ```
+shared/                  @friend-market/shared: used by both server and client, no build step
+  src/rules.ts           game rules and field limits (MAX_MEMBERS, STARTING_BALANCE, LIMITS)
+  src/payout.ts          parimutuel payout maths and the payout estimate
+  src/api.ts             API response types, which the server serializers are checked against
 server/
   prisma/schema.prisma   data model: Group, Member, Session, Prediction, Bet
   prisma/seed.ts         demo data, created through the same rules as the API
-  src/payout.ts          parimutuel payout maths (pure function)
   src/market.ts          the rules: create group, join, predict, cancel, bet, resolve
   src/auth.ts            session tokens
   src/codes.ts           invite code generator
-  src/routes.ts          REST endpoints and request validation
+  src/schemas.ts         request validation (Zod)
+  src/views.ts           response shaping, typed against shared/src/api.ts
+  src/routes.ts          REST endpoint handlers
   test/                  Vitest suites
 client/
   src/api.ts             typed fetch wrapper that adds the session token
+  src/hooks.ts           useApi / useAction: data loading and action state for pages
   src/session.tsx        who's signed in
   src/pages/             Welcome (join/create), Predictions, Prediction detail, New, Leaderboard
 SPEC.md                  product rules, API reference and data model

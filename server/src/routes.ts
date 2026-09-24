@@ -1,5 +1,11 @@
 import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
+import {
+  MAX_MEMBERS,
+  type AuthResponse,
+  type MemberWithInPlay,
+  type RosterResponse,
+} from "@friend-market/shared";
 import { createSession, currentMember, currentToken, endSession, requireMember } from "./auth";
 import { normalizeCode } from "./codes";
 import { HttpError } from "./errors";
@@ -8,7 +14,6 @@ import {
   createGroup,
   createPrediction,
   findOrCreateMember,
-  MAX_MEMBERS,
   placeBet,
   resolvePrediction,
 } from "./market";
@@ -45,7 +50,7 @@ export function createRouter(db: PrismaClient) {
     const { groupName, name } = createGroupBody.parse(req.body);
     const { group, member } = await createGroup(db, { groupName, memberName: name });
     const token = await createSession(db, member.id);
-    res.status(201).json({ token, member: toMe(member, group) });
+    res.status(201).json({ token, member: toMe(member, group) } satisfies AuthResponse);
   });
 
   // Names for the join screen's picker; knowing the code is what lets you in.
@@ -60,7 +65,7 @@ export function createRouter(db: PrismaClient) {
       groupName: group.name,
       names: members.map((m) => m.name),
       full: members.length >= MAX_MEMBERS,
-    });
+    } satisfies RosterResponse);
   });
 
   router.post("/join", async (req, res) => {
@@ -68,7 +73,7 @@ export function createRouter(db: PrismaClient) {
     const group = await groupByCode(code);
     const member = await findOrCreateMember(db, group.id, name);
     const token = await createSession(db, member.id);
-    res.status(201).json({ token, member: toMe(member, group) });
+    res.status(201).json({ token, member: toMe(member, group) } satisfies AuthResponse);
   });
 
   // Everything below needs a signed-in member, and only sees that member's group.
@@ -95,7 +100,9 @@ export function createRouter(db: PrismaClient) {
       }),
     ]);
     const inPlayByMember = new Map(inPlay.map((row) => [row.memberId, row._sum.amount ?? 0]));
-    res.json(members.map((m) => ({ ...toMember(m), inPlay: inPlayByMember.get(m.id) ?? 0 })));
+    res.json(
+      members.map((m): MemberWithInPlay => ({ ...toMember(m), inPlay: inPlayByMember.get(m.id) ?? 0 })),
+    );
   });
 
   router.get("/predictions", async (_req, res) => {

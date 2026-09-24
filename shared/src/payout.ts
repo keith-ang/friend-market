@@ -1,6 +1,9 @@
 export const SIDES = ["YES", "NO"] as const;
 export type Side = (typeof SIDES)[number];
 
+/** Derived from the outcome and deadline; never stored. */
+export type Status = "OPEN" | "CLOSED" | "RESOLVED";
+
 export interface Stake {
   id: number;
   side: Side;
@@ -47,6 +50,17 @@ export function computePayouts(bets: Stake[], outcome: Side): Map<number, number
     leftover--;
   }
   return payouts;
+}
+
+/**
+ * What a new bet of `amount` on `side` would pay back if that side wins and
+ * nobody else bets: the same split computePayouts makes, before rounding leftovers.
+ */
+export function estimatePayout(yesPool: number, noPool: number, side: Side, amount: number): number {
+  if (amount <= 0) return 0;
+  const pot = yesPool + noPool + amount;
+  const sidePool = (side === "YES" ? yesPool : noPool) + amount;
+  return Math.floor((amount * pot) / sidePool);
 }
 
 function sum(bets: Stake[]): number {

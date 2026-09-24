@@ -47,6 +47,25 @@ beforeEach(async () => {
 
 afterAll(() => prisma.$disconnect());
 
+describe("response shapes", () => {
+  it("returns dates as ISO 8601 strings", async () => {
+    const { token: priya } = await startGroup("Priya");
+    const id = await newPrediction(priya, { closesAt: new Date(Date.now() + 86_400_000).toISOString() });
+    await as(priya).post(`/api/predictions/${id}/bets`, { side: "YES", amount: 10 });
+    await as(priya).post(`/api/predictions/${id}/resolve`, { outcome: "YES" });
+
+    const iso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+    const detail = (await as(priya).get(`/api/predictions/${id}`)).body;
+    expect(detail.createdAt).toMatch(iso);
+    expect(detail.closesAt).toMatch(iso);
+    expect(detail.resolvedAt).toMatch(iso);
+    expect(detail.bets[0].createdAt).toMatch(iso);
+    const [summary] = (await as(priya).get("/api/predictions")).body;
+    expect(summary.createdAt).toMatch(iso);
+    expect(summary.closesAt).toBe(detail.closesAt);
+  });
+});
+
 describe("groups", () => {
   it("creates a group with a readable invite code and signs in its first member", async () => {
     const res = await request(app).post("/api/groups").send({ groupName: "Dinner Club", name: "Priya" });

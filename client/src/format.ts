@@ -1,3 +1,4 @@
+import { estimatePayout as estimateFromPools } from "@friend-market/shared";
 import type { PredictionSummary, Side } from "./types";
 
 export const points = (n: number) => `${n.toLocaleString()} pts`;
@@ -10,10 +11,7 @@ export function yesPercent(p: Pick<PredictionSummary, "yesPool" | "noPool">): nu
 
 /** What a new bet would pay back if its side wins and nobody else bets. */
 export function estimatePayout(p: PredictionSummary, side: Side, amount: number): number {
-  if (amount <= 0) return 0;
-  const pot = p.yesPool + p.noPool + amount;
-  const sidePool = (side === "YES" ? p.yesPool : p.noPool) + amount;
-  return Math.floor((amount * pot) / sidePool);
+  return estimateFromPools(p.yesPool, p.noPool, side, amount);
 }
 
 const dateTime = new Intl.DateTimeFormat(undefined, {

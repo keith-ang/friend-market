@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computePayouts, toSide, type Stake } from "../src/payout";
+import { computePayouts, estimatePayout, toSide, type Stake } from "@friend-market/shared";
 
 const total = (payouts: Map<number, number>) => [...payouts.values()].reduce((a, b) => a + b, 0);
 
@@ -68,5 +68,31 @@ describe("toSide", () => {
     expect(toSide("YES")).toBe("YES");
     expect(toSide("NO")).toBe("NO");
     expect(() => toSide("MAYBE")).toThrow();
+  });
+});
+
+describe("estimatePayout", () => {
+  it("matches what computePayouts would pay if nobody else bets", () => {
+    // Existing pools: 270 on YES, 200 on NO. A new 50 on YES: 50 * 520 / 320 = 81.25
+    expect(estimatePayout(270, 200, "YES", 50)).toBe(81);
+    const payouts = computePayouts(
+      [
+        { id: 1, side: "YES", amount: 270 },
+        { id: 2, side: "NO", amount: 200 },
+        { id: 3, side: "YES", amount: 50 },
+      ],
+      "YES",
+    );
+    expect(Math.abs(payouts.get(3)! - estimatePayout(270, 200, "YES", 50))).toBeLessThanOrEqual(1);
+  });
+
+  it("returns the stake when the pot is empty or only your side has points", () => {
+    expect(estimatePayout(0, 0, "NO", 30)).toBe(30);
+    expect(estimatePayout(0, 100, "NO", 25)).toBe(25);
+  });
+
+  it("returns 0 for non-positive amounts", () => {
+    expect(estimatePayout(10, 10, "YES", 0)).toBe(0);
+    expect(estimatePayout(10, 10, "YES", -5)).toBe(0);
   });
 });
