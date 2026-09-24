@@ -1,0 +1,21 @@
+/* "Needs your call" and "You're in" tags on prediction cards */
+.card-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+.prediction-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.badge-call {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.badge-in {
+  background: var(--bg);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}

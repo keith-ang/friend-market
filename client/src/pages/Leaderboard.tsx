@@ -19,9 +19,10 @@ export default function Leaderboard() {
       {loading && <Loading />}
       {members && (
         <ol className="card leaderboard">
-          {members.map((m, i) => (
+          {members.map((m) => (
             <li key={m.id} className={m.id === me.id ? "leader me-row" : "leader"}>
-              <span className="rank">{i + 1}</span>
+              {/* Competition ranking: equal balances share a rank (1, 2, 2, 4). The list is sorted. */}
+              <span className="rank">{members.findIndex((other) => other.balance === m.balance) + 1}</span>
               <span className="leader-name">{m.name}</span>
               <span className="leader-points">
                 <strong>{points(m.balance)}</strong>
