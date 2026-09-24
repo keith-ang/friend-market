@@ -1,0 +1,57 @@
+/* In-app confirmation dialog (ConfirmDialog.tsx) */
+.confirm-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 20px 50px rgb(0 0 0 / 0.35);
+}
+.confirm-dialog::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+.confirm-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding: 1.2rem;
+}
+.confirm-dialog-body h2 {
+  margin: 0;
+}
+.confirm-dialog-body p {
+  margin: 0;
+}
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+}
+.confirm-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.confirm-danger,
+.confirm-no {
+  background: var(--no);
+  border-color: var(--no);
+  color: #fff;
+}
+.confirm-yes {
+  background: var(--yes);
+  border-color: var(--yes);
+  color: #fff;
+}
+
+@media (max-width: 520px) {
+  .confirm-dialog-actions {
+    flex-direction: column-reverse;
+  }
+  .confirm-dialog-actions .btn {
+    width: 100%;
+  }
+}

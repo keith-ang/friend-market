@@ -1,12 +1,18 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { payoutsByMember } from "@friend-market/shared";
 import { api } from "../api";
+import { ConfirmDialog } from "../ConfirmDialog";
 import { BackLink, ErrorNote, Loading, OddsBar, StatusBadge } from "../components";
 import { estimatePayout, formatDate, points } from "../format";
 import { useAction, useApi, useAutoRefresh, useChangedWhileEditing } from "../hooks";
 import { useMe, useSession } from "../session";
-import type { Bet, Side } from "../types";
+import type { Bet, PredictionDetail as Detail, Side } from "../types";
 import "../styles/live.css";
+import "../styles/resolve.css";
+
+/** Which irreversible action is waiting for the creator to confirm. */
+type PendingAction = { kind: "resolve"; outcome: Side } | { kind: "delete" };
 
 export default function PredictionDetail() {
   const id = Number(useParams().id);
@@ -21,6 +27,7 @@ export default function PredictionDetail() {
   const [side, setSide] = useState<Side>("YES");
   const [amount, setAmount] = useState("");
   const oddsChanged = useChangedWhileEditing(amount, prediction ? `${prediction.yesPool}/${prediction.noPool}` : "");
+  const [pending, setPending] = useState<PendingAction | null>(null);
 
   if (!prediction) {
     if (loadError) {
@@ -49,20 +56,22 @@ export default function PredictionDetail() {
     });
   }
 
-  function resolve(outcome: Side) {
-    if (!confirm(`Resolve as ${outcome}? This is final and pays out ${points(pot)} right away.`)) return;
-    run(async () => {
-      setPrediction(await api.resolve(p.id, outcome));
-      await refreshMe();
-    });
-  }
-
-  function cancel() {
-    if (!confirm("Delete this prediction?")) return;
-    run(async () => {
-      await api.cancelPrediction(p.id);
-      navigate("/");
-    });
+  async function confirmPending() {
+    if (!pending) return;
+    if (pending.kind === "resolve") {
+      const { outcome } = pending;
+      await run(async () => {
+        setPrediction(await api.resolve(p.id, outcome));
+        await refreshMe();
+      });
+    } else {
+      await run(async () => {
+        await api.cancelPrediction(p.id);
+        navigate("/");
+      });
+    }
+    // On failure the error shows on the page, behind the closed dialog.
+    setPending(null);
   }
 
   return (
@@ -166,21 +175,51 @@ export default function PredictionDetail() {
             Once you know the answer, resolve it and the pot is paid out straight away. You can do this before
             the deadline, but you can't undo it.
           </p>
-          <div className="row">
-            <button className="btn side-yes selected" disabled={busy} onClick={() => resolve("YES")}>
-              It happened: YES
-            </button>
-            <button className="btn side-no selected" disabled={busy} onClick={() => resolve("NO")}>
-              It didn't: NO
-            </button>
+          <div className="resolve-choices">
+            <div className="resolve-choice">
+              <button
+                className="btn resolve-yes"
+                disabled={busy}
+                onClick={() => setPending({ kind: "resolve", outcome: "YES" })}
+              >
+                Resolve as YES
+              </button>
+              <span className="hint">It happened</span>
+            </div>
+            <div className="resolve-choice">
+              <button
+                className="btn resolve-no"
+                disabled={busy}
+                onClick={() => setPending({ kind: "resolve", outcome: "NO" })}
+              >
+                Resolve as NO
+              </button>
+              <span className="hint">It didn't happen</span>
+            </div>
           </div>
           {p.betCount === 0 && (
-            <button className="btn-link danger" disabled={busy} onClick={cancel}>
-              Delete prediction (only possible while there are no bets)
+            <button className="btn-link danger" disabled={busy} onClick={() => setPending({ kind: "delete" })}>
+              Delete prediction
             </button>
           )}
         </section>
       )}
+
+      <ConfirmDialog
+        open={pending !== null}
+        title={pending?.kind === "resolve" ? `Resolve as ${pending.outcome}?` : "Delete this prediction?"}
+        confirmLabel={pending?.kind === "resolve" ? `Resolve as ${pending.outcome}` : "Delete prediction"}
+        tone={pending?.kind === "resolve" ? (pending.outcome === "YES" ? "yes" : "no") : "danger"}
+        busy={busy}
+        onConfirm={confirmPending}
+        onCancel={() => setPending(null)}
+      >
+        {pending?.kind === "resolve" ? (
+          <ResolvePreview prediction={p} outcome={pending.outcome} meId={me.id} />
+        ) : (
+          <p>Nobody has bet on it yet, so no points are affected.</p>
+        )}
+      </ConfirmDialog>
 
       <section className="card">
         <h2>Bets ({p.bets.length})</h2>
@@ -194,6 +233,47 @@ export default function PredictionDetail() {
           </ul>
         )}
       </section>
+    </>
+  );
+}
+
+/** Who gets what if the creator resolves `outcome` now. */
+function ResolvePreview({ prediction: p, outcome, meId }: { prediction: Detail; outcome: Side; meId: number }) {
+  const pot = p.yesPool + p.noPool;
+  if (pot === 0) {
+    return <p>Nobody has bet on this, so no points change hands. This can't be undone.</p>;
+  }
+
+  const payouts = payoutsByMember(
+    p.bets.map((b) => ({ id: b.id, memberId: b.member.id, side: b.side, amount: b.amount })),
+    outcome,
+  );
+  const names = new Map(p.bets.map((b) => [b.member.id, b.member.id === meId ? "You" : b.member.name]));
+  const rows = [...payouts].sort((a, b) => b[1] - a[1]);
+  const refund = (outcome === "YES" ? p.yesPool : p.noPool) === 0;
+
+  return (
+    <>
+      <p>
+        {refund
+          ? `Nobody backed ${outcome}, so everyone gets their ${points(pot)} back.`
+          : `The ${points(pot)} pot is paid out like this:`}
+      </p>
+      <ul className="payout-preview">
+        {rows.map(([memberId, payout]) => {
+          const name = names.get(memberId);
+          const verb = name === "You" ? "get" : "gets";
+          return (
+            <li key={memberId}>
+              <span>
+                {name} {verb}
+              </span>
+              <strong className={payout > 0 ? "yes-text" : "muted"}>{payout > 0 ? points(payout) : "nothing"}</strong>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="muted small">This can't be undone.</p>
     </>
   );
 }
