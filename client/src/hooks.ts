@@ -103,3 +103,79 @@ export function useAction(): ActionState {
 
   return { busy, error, run, setError };
 }
+
+/** How often visible pages refetch, so friends' bets and resolutions show up without a reload. */
+export const AUTO_REFRESH_MS = 20_000;
+
+/**
+ * Calls `refresh` every `intervalMs` while the page is visible, and straight away
+ * when the tab becomes visible again or the window regains focus. The timer is
+ * paused while hidden, calls never overlap, and failures are left to the caller
+ * (useApi keeps showing the data it already has).
+ */
+export function useAutoRefresh(
+  refresh: () => Promise<unknown>,
+  intervalMs = AUTO_REFRESH_MS,
+  enabled = true,
+) {
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+
+  useEffect(() => {
+    if (!enabled) return;
+    let running = false;
+    let timer: ReturnType<typeof setInterval> | undefined;
+
+    const tick = async () => {
+      if (running || document.visibilityState !== "visible") return;
+      running = true;
+      try {
+        await refreshRef.current();
+      } catch {
+        // A missed background refresh is retried on the next tick.
+      } finally {
+        running = false;
+      }
+    };
+    const start = () => {
+      if (timer === undefined) timer = setInterval(tick, intervalMs);
+    };
+    const stop = () => {
+      clearInterval(timer);
+      timer = undefined;
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        tick();
+        start();
+      } else {
+        stop();
+      }
+    };
+
+    if (document.visibilityState === "visible") start();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("focus", tick);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("focus", tick);
+    };
+  }, [intervalMs, enabled]);
+}
+
+/**
+ * True when `quote` differs from what it was when the user started filling in
+ * `input` (i.e. when `input` went from empty to non-empty). Resets once `input`
+ * is cleared. Used to flag odds that moved under a half-typed bet.
+ */
+export function useChangedWhileEditing(input: string, quote: string): boolean {
+  const [startQuote, setStartQuote] = useState<string | null>(null);
+
+  useEffect(() => {
+    setStartQuote((current) => (input === "" ? null : (current ?? quote)));
+    // Only a change to the input starts or ends an edit; quote changes are what we compare.
+  }, [input]);
+
+  return input !== "" && startQuote !== null && startQuote !== quote;
+}

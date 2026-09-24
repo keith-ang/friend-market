@@ -1,0 +1,4 @@
+/* Notice under the bet form when a refresh moved the odds mid-entry */
+.notice.odds-changed {
+  margin: 0;
+}

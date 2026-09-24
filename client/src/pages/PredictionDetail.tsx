@@ -3,9 +3,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { BackLink, ErrorNote, Loading, OddsBar, StatusBadge } from "../components";
 import { estimatePayout, formatDate, points } from "../format";
-import { useAction, useApi } from "../hooks";
+import { useAction, useApi, useAutoRefresh, useChangedWhileEditing } from "../hooks";
 import { useMe, useSession } from "../session";
 import type { Bet, Side } from "../types";
+import "../styles/live.css";
 
 export default function PredictionDetail() {
   const id = Number(useParams().id);
@@ -13,11 +14,13 @@ export default function PredictionDetail() {
   const { refreshMe } = useSession();
   const navigate = useNavigate();
 
-  const { data: prediction, error: loadError, setData: setPrediction } = useApi(() => api.prediction(id), [id]);
+  const { data: prediction, error: loadError, setData: setPrediction, reload } = useApi(() => api.prediction(id), [id]);
+  useAutoRefresh(reload);
   const { busy, error: actionError, run } = useAction();
 
   const [side, setSide] = useState<Side>("YES");
   const [amount, setAmount] = useState("");
+  const oddsChanged = useChangedWhileEditing(amount, prediction ? `${prediction.yesPool}/${prediction.noPool}` : "");
 
   if (!prediction) {
     if (loadError) {
@@ -143,6 +146,11 @@ export default function PredictionDetail() {
             <p className="muted small">
               If it resolves {side}, this bet pays about <strong>{points(estimatePayout(p, side, stake))}</strong>{" "}
               (assuming nobody else bets).
+            </p>
+          )}
+          {oddsChanged && (
+            <p className="notice odds-changed" role="status">
+              Odds changed since you started. The estimate above is updated.
             </p>
           )}
           <button className="btn btn-primary" disabled={busy || !validStake}>
