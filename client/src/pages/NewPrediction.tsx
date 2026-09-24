@@ -1,21 +1,19 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api";
-import { ErrorNote } from "../components";
+import { BackLink, ErrorNote } from "../components";
+import { useAction } from "../hooks";
 
 export default function NewPrediction() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [closesAt, setClosesAt] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const { busy, error, run } = useAction();
 
-  async function submit(e: FormEvent) {
+  function submit(e: FormEvent) {
     e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
+    run(async () => {
       const created = await api.createPrediction({
         title,
         description,
@@ -23,17 +21,12 @@ export default function NewPrediction() {
         closesAt: closesAt ? new Date(closesAt).toISOString() : null,
       });
       navigate(`/p/${created.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-      setBusy(false);
-    }
+    });
   }
 
   return (
     <>
-      <Link to="/" className="btn-link back">
-        ← All predictions
-      </Link>
+      <BackLink />
       <form className="card stack" onSubmit={submit}>
         <h1>New prediction</h1>
         <label>

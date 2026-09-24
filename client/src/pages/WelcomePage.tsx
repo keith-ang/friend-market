@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../api";
 import { ErrorNote, InviteCode } from "../components";
+import { useAction } from "../hooks";
 import { useSession } from "../session";
 import type { Me } from "../types";
 
@@ -14,20 +15,7 @@ type Step =
 export default function WelcomePage() {
   const { signIn } = useSession();
   const [step, setStep] = useState<Step>({ kind: "home" });
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function run(action: () => Promise<void>) {
-    setBusy(true);
-    setError(null);
-    try {
-      await action();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const { busy, error, run, setError } = useAction();
 
   function go(next: Step) {
     setError(null);

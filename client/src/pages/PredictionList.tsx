@@ -1,23 +1,15 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
-import { ErrorNote, OddsBar, StatusBadge } from "../components";
+import { ErrorNote, Loading, OddsBar, StatusBadge } from "../components";
 import { points } from "../format";
-import type { PredictionSummary } from "../types";
+import { useApi } from "../hooks";
 
 type Tab = "open" | "resolved";
 
 export default function PredictionList() {
-  const [predictions, setPredictions] = useState<PredictionSummary[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { data: predictions, error, loading } = useApi(() => api.predictions(), []);
   const [tab, setTab] = useState<Tab>("open");
-
-  useEffect(() => {
-    api
-      .predictions()
-      .then(setPredictions)
-      .catch((err) => setError(err.message));
-  }, []);
 
   const shown = (predictions ?? []).filter((p) =>
     tab === "open" ? p.status !== "RESOLVED" : p.status === "RESOLVED",
@@ -47,7 +39,7 @@ export default function PredictionList() {
       </div>
 
       <ErrorNote message={error} />
-      {predictions === null && !error && <p className="muted">Loading…</p>}
+      {loading && <Loading />}
       {predictions !== null && shown.length === 0 && (
         <p className="muted empty">
           {tab === "open" ? "Nothing open right now. Make a prediction!" : "Nothing resolved yet."}
